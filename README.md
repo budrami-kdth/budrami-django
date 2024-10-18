@@ -6,6 +6,7 @@ To use Prototype, you can just run django at the Directory.
 first, go to gemini Diectory
 
 pip install -r requirements.txt
+
 python manage.py runserver
 
 The python version in this project is 3.9
