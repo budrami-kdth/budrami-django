@@ -27,7 +27,8 @@
             <input type="file" id="imageInput" accept="image/*">
             <button id="sendButton">전송</button>
         </div>
-        <!-- <button onclick="fetchTextFromDjangoAndSendToTTS()">TTS 변환 및 재생</button> -->
+        <button onclick="fetchTextFromDjangoAndSendToTTS()">TTS 변환 및 재생 edge</button>
+        <button onclick="getTTS()">TTS 변환 및 재생 직접</button>
         <svg id="waveform" viewBox="0 0 100 30">
             <!-- Dots will be dynamically added here -->
         </svg>
@@ -288,6 +289,64 @@
             // console.timeEnd('tts 처리 시간');
         }
 
+        // async function fetchTextFromDjangoAndSendToTTS() {
+        //     // 1. Django 서버에서 텍스트 가져오기
+        //     console.time('fetchText');  // 고유한 타이머 이름 사용
+        //     const response = await fetch('/tts_view/');
+        //     const data = await response.json();
+        //     const text = data.message;  // Django에서 받은 텍스트
+
+        //     // 2. 이 텍스트를 Express 서버로 전송 (TTS 변환 요청)
+        //     console.time('sendToTTS');  // 또 다른 고유한 타이머 이름 사용
+        //     const ttsResponse = await fetch('http://localhost:3000/tts', {
+        //         method: 'POST',
+        //         headers: {
+        //             'Content-Type': 'application/json'
+        //         },
+        //         body: JSON.stringify({ input: text })
+        //     });
+        //     console.timeEnd('sendToTTS');  // 타이머 종료
+
+        //     // 3. TTS 변환된 음성 파일 받기
+        //     const audioBlob = await ttsResponse.blob();
+        //     const audioUrl = URL.createObjectURL(audioBlob);
+
+        //     // 4. 프론트엔드에서 오디오 재생
+        //     const audio = new Audio(audioUrl);
+        //     audio.play();
+        //     console.timeEnd('fetchText');  // 타이머 종료
+        // }
+
+        // async function getTTS(text) {
+        //     const url = "/tts-without-edge/";  // Edge function 사용 안 함
+
+        //     console.time('getTTS');  // 고유한 타이머 이름 사용
+        //     const response = await fetch(url, {
+        //         method: "POST",
+        //         headers: {
+        //             "Content-Type": "application/json",
+        //             'X-CSRFToken': getCookie('csrftoken')
+        //         },
+        //         body: JSON.stringify({ text: text }),
+        //     });
+
+        //     // Blob 형태로 음성 파일을 받음
+        //     const audioBlob = await response.blob();
+        //     const latency = response.headers.get('Latency');
+        //     console.log(`Latency: ${latency} seconds`);
+
+        //     // Blob 데이터를 URL로 변환 후 오디오로 재생
+        //     const audioUrl = URL.createObjectURL(audioBlob);
+        //     const audio = new Audio(audioUrl);
+        //     audio.play();
+        //     console.timeEnd('getTTS');  // 타이머 종료
+
+        //     return audioUrl;  // 필요 시 audio URL 반환
+        // }
+
+
+
+
         function stopSpeaking() {
             if (isSpeaking) {
                 speechSynthesis.cancel();
@@ -422,7 +481,7 @@
                     addBotMessage("죄송합니다. 오류가 발생했습니다.");
                     startNewSTTSession();
                 });
-           
+
         }
 
         function getCookie(name) {

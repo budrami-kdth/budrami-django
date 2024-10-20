@@ -166,7 +166,7 @@ def process_speech(request):
 class TextView(View):
     def get(self, request):
         text_data = {
-            'message': '안녕하세요! 이것은 클래스 기반 뷰의 텍스트 메시지입니다.',
+            'message': '이것은 테스트입니다.',
             'status': 'success'
         }
         return JsonResponse(text_data)
@@ -188,3 +188,53 @@ class TextView(View):
                 'error': '잘못된 JSON 형식입니다.',
                 'status': 'error'
             }, status=400)
+        
+
+# import time
+# import requests
+# from django.http import JsonResponse, HttpResponse
+# from django.views.decorators.csrf import csrf_exempt
+
+# def get_tts_without_edge(text):
+#     start_time = time.time()
+
+#     # ChatGPT TTS API 직접 호출
+#     response = requests.post(
+#         "https://api.openai.com/v1/audio/speech", 
+#         headers={
+#             "Authorization": f"Bearer ",  # 적절한 API Key 사용
+#             "Content-Type": "application/json"
+#         },
+#         data=json.dumps({
+#             "model": "tts-1-hd",
+#             "input": text,
+#             "voice": "nova"
+#         })
+#     )
+
+#     end_time = time.time()
+#     latency = end_time - start_time
+
+#     # 응답이 성공적으로 왔는지 확인
+#     if response.status_code == 200:
+#         # 음성 데이터는 바이너리로 반환됨
+#         audio_data = response.content
+#     else:
+#         audio_data = None
+
+#     return latency, audio_data
+
+# @csrf_exempt
+# def tts_without_edge(request):
+#     if request.method == "POST":
+#         text = request.POST.get("text", "이것은 테스트입니다.")
+#         latency, audio_data = get_tts_without_edge(text)
+        
+#         if audio_data:
+#             # 음성 데이터를 바이너리로 반환
+#             response = HttpResponse(audio_data, content_type="audio/mpeg")
+#             response['Content-Disposition'] = 'attachment; filename="speech.mp3"'
+#             response['Latency'] = latency
+#             return response
+#         else:
+#             return JsonResponse({"error": "TTS 요청 실패"}, status=500)
