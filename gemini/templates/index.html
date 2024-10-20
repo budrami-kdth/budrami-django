@@ -1,11 +1,13 @@
 {% load static %}
 <html>
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gemini 음성 인식 및 TTS</title>
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
 </head>
+
 <body>
     <div class="star-container" id="starContainer"></div>
     <div id="container">
@@ -25,416 +27,425 @@
             <input type="file" id="imageInput" accept="image/*">
             <button id="sendButton">전송</button>
         </div>
+        <!-- <button onclick="fetchTextFromDjangoAndSendToTTS()">TTS 변환 및 재생</button> -->
         <svg id="waveform" viewBox="0 0 100 30">
             <!-- Dots will be dynamically added here -->
         </svg>
     </div>
 
     <script>
-    let recognition;
-    let recordButton = document.getElementById('recordButton');
-    let chatContainer = document.getElementById('chatContainer');
-    let waveform = document.getElementById('waveform');
-    let textInput = document.getElementById('textInput');
-    let sendButton = document.getElementById('sendButton');
-    let imageInput = document.getElementById('imageInput');
-    let imageLabel = document.getElementById('imageLabel');
-    let isListening = false;
-    let audioContext;
-    let analyser;
-    let microphone;
-    let silenceTimeout;
-    let currentUtterance = null;
-    let isSpeaking = false;
+        let recognition;
+        let recordButton = document.getElementById('recordButton');
+        let chatContainer = document.getElementById('chatContainer');
+        let waveform = document.getElementById('waveform');
+        let textInput = document.getElementById('textInput');
+        let sendButton = document.getElementById('sendButton');
+        let imageInput = document.getElementById('imageInput');
+        let imageLabel = document.getElementById('imageLabel');
+        let isListening = false;
+        let audioContext;
+        let analyser;
+        let microphone;
+        let silenceTimeout;
+        let currentUtterance = null;
+        let isSpeaking = false;
 
-    // Initialize Web Speech API
-    if ('webkitSpeechRecognition' in window) {
-        recognition = new webkitSpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = 'ko-KR';
+        // Initialize Web Speech API
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'ko-KR';
 
-        recognition.onstart = function() {
-            isListening = true;
-            recordButton.textContent = "말하기 중지";
-            startAudioAnalysis();
-        };
+            recognition.onstart = function () {
+                isListening = true;
+                recordButton.textContent = "말하기 중지";
+                startAudioAnalysis();
+            };
 
-        recognition.onresult = function(event) {
-            clearTimeout(silenceTimeout);
-            let finalTranscript = '';
-            let interimTranscript = '';
-        
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    finalTranscript += event.results[i][0].transcript + ' ';
-                } else {
-                    interimTranscript += event.results[i][0].transcript;
+            recognition.onresult = function (event) {
+                clearTimeout(silenceTimeout);
+                let finalTranscript = '';
+                let interimTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript + ' ';
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
                 }
-            }
-        
-            if (interimTranscript.trim()) {
-                updateUserMessage(interimTranscript);
-                if (isSpeaking) {
-                    stopSpeaking(); // Stop TTS when user starts speaking
+
+                if (interimTranscript.trim()) {
+                    updateUserMessage(interimTranscript);
+                    if (isSpeaking) {
+                        stopSpeaking(); // Stop TTS when user starts speaking
+                    }
                 }
-            }
-        
-            if (finalTranscript.trim()) {
-                const existingInterim = document.querySelector('.userMessage.interim');
-                if (existingInterim) {
-                    existingInterim.remove();
+
+                if (finalTranscript.trim()) {
+                    const existingInterim = document.querySelector('.userMessage.interim');
+                    if (existingInterim) {
+                        existingInterim.remove();
+                    }
+                    addUserMessage(finalTranscript);
+                    sendToGemini(finalTranscript);
+                    startNewSTTSession(); // Start a new session after final result
                 }
-                addUserMessage(finalTranscript);
-                sendToGemini(finalTranscript);
-                startNewSTTSession(); // Start a new session after final result
-            }
-        
-            // Reset silence detection
-            setSilenceDetection();
-        };
 
-        recognition.onerror = function(event) {
-            console.error('Speech recognition error', event.error);
-            startNewSTTSession(); // Restart on error
-        };
+                // Reset silence detection
+                setSilenceDetection();
+            };
 
-        recognition.onend = function() {
-            if (isListening) {
-                startNewSTTSession();  // Automatically restart recognition
-            } else {
-                recordButton.textContent = "말하기 시작";
-                stopAudioAnalysis();
-            }
-        };
-    }
+            recognition.onerror = function (event) {
+                console.error('Speech recognition error', event.error);
+                startNewSTTSession(); // Restart on error
+            };
 
-    function setSilenceDetection() {
-        clearTimeout(silenceTimeout);
-        silenceTimeout = setTimeout(() => {
-            startNewSTTSession(); // Start a new session on silence
-        }, 3000); // Increased silence detection time to 3 seconds
-    }
-
-    function startNewSTTSession() {
-        if (recognition) {
-            recognition.stop();
-            setTimeout(() => {
+            recognition.onend = function () {
                 if (isListening) {
-                    recognition.start();
-                    setSilenceDetection();
+                    startNewSTTSession();  // Automatically restart recognition
+                } else {
+                    recordButton.textContent = "말하기 시작";
+                    stopAudioAnalysis();
                 }
-            }, 100);
+            };
         }
-    }
 
-    function updateUserMessage(message) {
-        const existingMessage = document.querySelector('.userMessage.interim');
-        if (existingMessage) {
-            existingMessage.textContent = message;
-        } else {
+        function setSilenceDetection() {
+            clearTimeout(silenceTimeout);
+            silenceTimeout = setTimeout(() => {
+                startNewSTTSession(); // Start a new session on silence
+            }, 3000); // Increased silence detection time to 3 seconds
+        }
+
+        function startNewSTTSession() {
+            if (recognition) {
+                recognition.stop();
+                setTimeout(() => {
+                    if (isListening) {
+                        recognition.start();
+                        setSilenceDetection();
+                    }
+                }, 100);
+            }
+        }
+
+        function updateUserMessage(message) {
+            const existingMessage = document.querySelector('.userMessage.interim');
+            if (existingMessage) {
+                existingMessage.textContent = message;
+            } else {
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('chatMessage', 'userMessage', 'interim');
+                messageElement.textContent = message;
+                chatContainer.appendChild(messageElement);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+        }
+
+        function addUserMessage(message, imageFile = null) {
             const messageElement = document.createElement('div');
-            messageElement.classList.add('chatMessage', 'userMessage', 'interim');
+            messageElement.classList.add('chatMessage', 'userMessage');
+
+            if (imageFile) {
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(imageFile);
+                img.style.maxWidth = '200px';
+                img.style.maxHeight = '200px';
+                messageElement.appendChild(img);
+            }
+
+            const textElement = document.createElement('p');
+            textElement.textContent = message;
+            messageElement.appendChild(textElement);
+
+            chatContainer.appendChild(messageElement);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function addBotMessage(message) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('chatMessage', 'botMessage');
             messageElement.textContent = message;
             chatContainer.appendChild(messageElement);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
-    }
 
-    function addUserMessage(message, imageFile = null) {
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('chatMessage', 'userMessage');
-        
-        if (imageFile) {
-            const img = document.createElement('img');
-            img.src = URL.createObjectURL(imageFile);
-            img.style.maxWidth = '200px';
-            img.style.maxHeight = '200px';
-            messageElement.appendChild(img);
-        }
-        
-        const textElement = document.createElement('p');
-        textElement.textContent = message;
-        messageElement.appendChild(textElement);
-        
-        chatContainer.appendChild(messageElement);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-
-    function addBotMessage(message) {
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('chatMessage', 'botMessage');
-        messageElement.textContent = message;
-        chatContainer.appendChild(messageElement);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-
-    function toggleRecording() {
-        if (!isListening) {
-            startRecording();
-        } else {
-            stopRecording();
-        }
-    }
-
-    function startRecording() {
-        if (recognition) {
-            if (isSpeaking) {
-                stopSpeaking(); // Stop any ongoing TTS
-            }
-            recognition.start();
-            setSilenceDetection();
-        }
-    }
-
-    function stopRecording() {
-        if (recognition) {
-            recognition.stop();
-            isListening = false;
-            recordButton.textContent = "말하기 시작";
-            stopAudioAnalysis();
-            clearTimeout(silenceTimeout);
-        }
-    }
-
-    recordButton.addEventListener('click', toggleRecording);
-
-    function startAudioAnalysis() {
-        if (!audioContext) {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            analyser = audioContext.createAnalyser();
-            analyser.fftSize = 256;
-
-            navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(stream => {
-                    microphone = audioContext.createMediaStreamSource(stream);
-                    microphone.connect(analyser);
-                    visualize();
-                })
-                .catch(err => {
-                    console.error('Error accessing microphone:', err);
-                });
-        } else {
-            audioContext.resume();
-        }
-    }
-
-    function stopAudioAnalysis() {
-        if (audioContext) {
-            audioContext.suspend();
-        }
-    }
-
-    function visualize() {
-        const bufferLength = analyser.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-
-        function draw() {
-            requestAnimationFrame(draw);
-
-            analyser.getByteFrequencyData(dataArray);
-
-            waveform.innerHTML = '';
-            const dotCount = 31;
-            const centerIndex = Math.floor(dotCount / 2);
-
-            for (let i = 0; i < dotCount; i++) {
-                const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-                const x = (i / (dotCount - 1)) * 100;
-                const y = 15;
-                const dataIndex = Math.floor(bufferLength / 2) + (i - centerIndex) * 2;
-                const r = (dataArray[dataIndex] / 256) * 4 + 1;
-                
-                dot.setAttribute("cx", x);
-                dot.setAttribute("cy", y);
-                dot.setAttribute("r", r);
-                dot.classList.add("dot");
-                
-                waveform.appendChild(dot);
+        function toggleRecording() {
+            if (!isListening) {
+                startRecording();
+            } else {
+                stopRecording();
             }
         }
 
-        draw();
-    }
-
-    function speakResponse(text) {
-        if (isSpeaking) {
-            stopSpeaking(); // Stop any ongoing speech
+        function startRecording() {
+            if (recognition) {
+                if (isSpeaking) {
+                    stopSpeaking(); // Stop any ongoing TTS
+                }
+                recognition.start();
+                setSilenceDetection();
+            }
         }
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'ko-KR';
-        utterance.rate = 2;
-    
-        const voices = speechSynthesis.getVoices();
-        const femaleVoice = voices.find(voice => voice.lang === 'ko-KR' && voice.name.includes('female'));
-    
-        if (femaleVoice) {
-            utterance.voice = femaleVoice;
+
+        function stopRecording() {
+            if (recognition) {
+                recognition.stop();
+                isListening = false;
+                recordButton.textContent = "말하기 시작";
+                stopAudioAnalysis();
+                clearTimeout(silenceTimeout);
+            }
         }
-    
-        currentUtterance = utterance; // Store the current utterance
-        isSpeaking = true;
-        utterance.onend = function() {
-            isSpeaking = false;
-            startNewSTTSession(); // Start listening again after TTS ends
-        };
-        speechSynthesis.speak(utterance);
-    }
 
-    function stopSpeaking() {
-        if (isSpeaking) {
-            speechSynthesis.cancel();
-            currentUtterance = null;
-            isSpeaking = false;
+        recordButton.addEventListener('click', toggleRecording);
+
+        function startAudioAnalysis() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(stream => {
+                        microphone = audioContext.createMediaStreamSource(stream);
+                        microphone.connect(analyser);
+                        visualize();
+                    })
+                    .catch(err => {
+                        console.error('Error accessing microphone:', err);
+                    });
+            } else {
+                audioContext.resume();
+            }
         }
-    }
 
-    speechSynthesis.onvoiceschanged = function() {
-        const voices = speechSynthesis.getVoices();
-        console.log(voices);
-    };
+        function stopAudioAnalysis() {
+            if (audioContext) {
+                audioContext.suspend();
+            }
+        }
 
-    function addStars() {
-        const starContainer = document.getElementById('starContainer');
-        const containerWidth = window.innerWidth;
-        const containerHeight = window.innerHeight;
-        const starCount = 30;
-        const minDistance = 100;
+        function visualize() {
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
 
-        const stars = [];
+            function draw() {
+                requestAnimationFrame(draw);
 
-        function checkDistance(x, y) {
-            for (let star of stars) {
-                const dx = x - star.x;
-                const dy = y - star.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < minDistance) {
-                    return false;
+                analyser.getByteFrequencyData(dataArray);
+
+                waveform.innerHTML = '';
+                const dotCount = 31;
+                const centerIndex = Math.floor(dotCount / 2);
+
+                for (let i = 0; i < dotCount; i++) {
+                    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    const x = (i / (dotCount - 1)) * 100;
+                    const y = 15;
+                    const dataIndex = Math.floor(bufferLength / 2) + (i - centerIndex) * 2;
+                    const r = (dataArray[dataIndex] / 256) * 4 + 1;
+
+                    dot.setAttribute("cx", x);
+                    dot.setAttribute("cy", y);
+                    dot.setAttribute("r", r);
+                    dot.classList.add("dot");
+
+                    waveform.appendChild(dot);
                 }
             }
-            return true;
+
+            draw();
         }
 
-        for (let i = 0; i < starCount; i++) {
-            let attempts = 0;
-            let x, y;
-            do {
-                x = Math.random() * containerWidth;
-                y = Math.random() * containerHeight;
-                attempts++;
-                if (attempts > 100) break;
-            } while (!checkDistance(x, y));
+        async function speakResponse(text) {
+            if (isSpeaking) {
+                stopSpeaking(); // Stop any ongoing speech
+            }
+            // console.time('tts 처리 시간');
 
-            if (attempts <= 100) {
-                const star = document.createElement('div');
-                star.classList.add('star');
-                
-                star.style.left = `${x}px`;
-                star.style.top = `${y}px`;
-                
-                const size = 30 + Math.random() * 20;
-                star.style.width = `${size}px`;
-                star.style.height = `${size}px`;
-                
-                const animationDuration = 2 + Math.random() * 3;
-                star.style.animationDuration = `${animationDuration}s`;
-                star.style.animationDelay = `${Math.random() * animationDuration}s`;
-                
-                starContainer.appendChild(star);
-                stars.push({ x, y });
+            // 2. 이 텍스트를 Express 서버로 전송 (TTS 변환 요청)
+            const ttsResponse = await fetch('http://localhost:3000/tts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+
+                },
+                body: JSON.stringify({ input: text }) // 'input'으로 전송
+            });
+
+            // 3. TTS 변환된 음성 파일 받기
+            const audioBlob = await ttsResponse.blob();
+            const audioUrl = URL.createObjectURL(audioBlob);
+
+            // 4. 프론트엔드에서 오디오 재생
+            const audio = new Audio(audioUrl);
+            audio.play();
+
+            // console.timeEnd('tts 처리 시간');
+        }
+
+        function stopSpeaking() {
+            if (isSpeaking) {
+                speechSynthesis.cancel();
+                currentUtterance = null;
+                isSpeaking = false;
             }
         }
-    }
 
-    function handleTextAndImageInput() {
-        const message = textInput.value.trim();
-        const imageFile = imageInput.files[0];
-        
-        if (message || imageFile) {
-            stopRecording();
-            stopSpeaking();
-            
-            addUserMessage(message, imageFile);
-            
-            if (imageFile) {
-                const formData = new FormData();
-                formData.append('image', imageFile);
-                if (message) formData.append('text', message);
-    
-                fetch('/process_speech/', {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-CSRFToken': getCookie('csrftoken')
+        speechSynthesis.onvoiceschanged = function () {
+            const voices = speechSynthesis.getVoices();
+            console.log(voices);
+        };
+
+        function addStars() {
+            const starContainer = document.getElementById('starContainer');
+            const containerWidth = window.innerWidth;
+            const containerHeight = window.innerHeight;
+            const starCount = 30;
+            const minDistance = 100;
+
+            const stars = [];
+
+            function checkDistance(x, y) {
+                for (let star of stars) {
+                    const dx = x - star.x;
+                    const dy = y - star.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < minDistance) {
+                        return false;
                     }
-                })
+                }
+                return true;
+            }
+
+            for (let i = 0; i < starCount; i++) {
+                let attempts = 0;
+                let x, y;
+                do {
+                    x = Math.random() * containerWidth;
+                    y = Math.random() * containerHeight;
+                    attempts++;
+                    if (attempts > 100) break;
+                } while (!checkDistance(x, y));
+
+                if (attempts <= 100) {
+                    const star = document.createElement('div');
+                    star.classList.add('star');
+
+                    star.style.left = `${x}px`;
+                    star.style.top = `${y}px`;
+
+                    const size = 30 + Math.random() * 20;
+                    star.style.width = `${size}px`;
+                    star.style.height = `${size}px`;
+
+                    const animationDuration = 2 + Math.random() * 3;
+                    star.style.animationDuration = `${animationDuration}s`;
+                    star.style.animationDelay = `${Math.random() * animationDuration}s`;
+
+                    starContainer.appendChild(star);
+                    stars.push({ x, y });
+                }
+            }
+        }
+
+        function handleTextAndImageInput() {
+            const message = textInput.value.trim();
+            const imageFile = imageInput.files[0];
+
+            if (message || imageFile) {
+                stopRecording();
+                stopSpeaking();
+
+                addUserMessage(message, imageFile);
+
+                if (imageFile) {
+                    const formData = new FormData();
+                    formData.append('image', imageFile);
+                    if (message) formData.append('text', message);
+
+                    fetch('/process_speech/', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken')
+                        }
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            speakResponse(data.response);
+                            addBotMessage(data.response);
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            addBotMessage("죄송합니다. 오류가 발생했습니다.");
+                            startNewSTTSession();
+                        });
+                } else if (message) {
+                    sendToGemini(message);
+                }
+
+                textInput.value = '';
+                imageInput.value = '';
+            }
+        }
+
+        sendButton.addEventListener('click', handleTextAndImageInput);
+        textInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                handleTextAndImageInput();
+            }
+        });
+
+        function sendToGemini(text) {
+            console.time('전체 처리 시간');
+            fetch('/process_speech/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ text: text })
+            })
                 .then(response => response.json())
                 .then(data => {
-                    addBotMessage(data.response);
                     speakResponse(data.response);
+                    addBotMessage(data.response);
+                    console.timeEnd('전체 처리 시간');
                 })
                 .catch(error => {
                     console.error('Error:', error);
                     addBotMessage("죄송합니다. 오류가 발생했습니다.");
                     startNewSTTSession();
                 });
-            } else if (message) {
-                sendToGemini(message);
-            }
-            
-            textInput.value = '';
-            imageInput.value = '';
+           
         }
-    }
 
-    sendButton.addEventListener('click', handleTextAndImageInput);
-    textInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            handleTextAndImageInput();
-        }
-    });
-
-    function sendToGemini(text) {
-        fetch('/process_speech/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({ text: text })
-        })
-        .then(response => response.json())
-        .then(data => {
-            addBotMessage(data.response);
-            speakResponse(data.response);
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            addBotMessage("죄송합니다. 오류가 발생했습니다.");
-            startNewSTTSession();
-        });
-    }
-
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
                 }
             }
+            return cookieValue;
         }
-        return cookieValue;
-    }
 
-    window.addEventListener('load', addStars);
-    window.addEventListener('resize', () => {
-        document.getElementById('starContainer').innerHTML = '';
-        addStars();
-    });
+        window.addEventListener('load', addStars);
+        window.addEventListener('resize', () => {
+            document.getElementById('starContainer').innerHTML = '';
+            addStars();
+        });
     </script>
 </body>
+
 </html>
