@@ -16,3 +16,6 @@ Thank you.
 
 
 Working Video : https://youtu.be/l3IXkB9TJQE?si=LBK-M-_5sn-GreVk
+
+->tts를 chatgpt api로 고친 버전
+협업의 비용 부담 때문에 나중에 merge할 것임
