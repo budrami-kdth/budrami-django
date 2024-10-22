@@ -23,12 +23,15 @@ app.post('/tts', async (req, res) => {
             body: JSON.stringify({
                 model: 'tts-1',
                 input: input,
-                voice: 'nova'
+                voice: 'nova',
+                response_format:'opus'
+
             })
         });
         console.log('response:', response)
         const audioBuffer = await response.arrayBuffer();
         res.set('Content-Type', 'audio/mpeg');
+        console.log('response:', response)
         res.send(Buffer.from(audioBuffer));
     } catch (error) {
         console.error('Error in /tts:', error.message);

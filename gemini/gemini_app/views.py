@@ -1,6 +1,6 @@
 import os
 import json
-import logging
+# import logging
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -17,15 +17,14 @@ from django.views import View
 import requests
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.DEBUG)
+# logger = logging.getLogger(__name__)
 
 # OpenAI API 설정
-try:
-    openai_api_key = os.environ["OPENAI_API_KEY"]
-except KeyError:
-    logger.error("OPENAI_API_KEY environment variable is not set")
-    raise
+openai_api_key = os.environ["OPENAI_API_KEY"]
+# except KeyError:
+#     logger.error("OPENAI_API_KEY environment variable is not set")
+#     raise
 
 from langchain_openai import ChatOpenAI
 
@@ -126,11 +125,11 @@ def process_speech(request):
     if request.method == 'POST':
         user_text = ''
         if request.content_type == 'application/json':
-            try:
+            # try:
                 data = json.loads(request.body)
                 user_text = data.get('text', '')
-            except json.JSONDecodeError:
-                logger.warning("Failed to parse JSON body")
+            # except json.JSONDecodeError:
+            #     logger.warning("Failed to parse JSON body")
         else:
             user_text = request.POST.get('text', '')
 
@@ -140,13 +139,13 @@ def process_speech(request):
         try:
             # LangChain을 사용하여 응답 생성
             response = conversation_chain.predict(input=user_text)
-            print(response,'대답')
+            # print(response,'대답')
             generated_text = response  # response is already a string
 
             # express_url = 'http://localhost:3000/tts'  # Express 서버의 엔드포인트
             # response = requests.post(express_url, json={'text': generated_text})
 
-            logger.info(f"Received response from LangChain: {generated_text}")
+            # logger.info(f"Received response from LangChain: {generated_text}")
 
             # if response.status_code == 200:
             #     # TTS 음성을 Django에서 바로 전달
@@ -155,39 +154,39 @@ def process_speech(request):
             #     return JsonResponse({'error': 'Failed to get TTS'}, status=500)
 
         except Exception as e:
-            logger.error(f"An error occurred during processing: {str(e)}")
+            # logger.error(f"An error occurred during processing: {str(e)}")
             return JsonResponse({'error': f'An error occurred: {str(e)}'}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
-# 클래스 기반 뷰
-@method_decorator(csrf_exempt, name='dispatch')
-class TextView(View):
-    def get(self, request):
-        text_data = {
-            'message': '이것은 테스트입니다.',
-            'status': 'success'
-        }
-        return JsonResponse(text_data)
+# # 클래스 기반 뷰
+# @method_decorator(csrf_exempt, name='dispatch')
+# class TextView(View):
+#     def get(self, request):
+#         text_data = {
+#             'message': '이것은 테스트입니다.',
+#             'status': 'success'
+#         }
+#         return JsonResponse(text_data)
     
-    def post(self, request):
-        # POST 요청으로 받은 텍스트를 다시 전송
-        try:
-            import json
-            data = json.loads(request.body)
-            received_text = data.get('text', '')
+#     def post(self, request):
+#         # POST 요청으로 받은 텍스트를 다시 전송
+#         try:
+#             import json
+#             data = json.loads(request.body)
+#             received_text = data.get('text', '')
             
-            response_data = {
-                'received_message': received_text,
-                'status': 'success'
-            }
-            return JsonResponse(response_data)
-        except json.JSONDecodeError:
-            return JsonResponse({
-                'error': '잘못된 JSON 형식입니다.',
-                'status': 'error'
-            }, status=400)
+#             response_data = {
+#                 'received_message': received_text,
+#                 'status': 'success'
+#             }
+#             return JsonResponse(response_data)
+#         except json.JSONDecodeError:
+#             return JsonResponse({
+#                 'error': '잘못된 JSON 형식입니다.',
+#                 'status': 'error'
+#             }, status=400)
         
 
 # import time
