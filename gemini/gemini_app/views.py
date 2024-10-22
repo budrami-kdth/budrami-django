@@ -99,13 +99,47 @@ prompt = ChatPromptTemplate.from_messages([
     ("human", "{input}")
 ])
 
+from typing import List
+from langchain.memory import ConversationBufferMemory
+from langchain.schema import BaseMessage
 
+from concurrent.futures import ThreadPoolExecutor
 
-# LangChain LLM 및 메모리 설정
-memory = ConversationSummaryBufferMemory(
-    llm=llm,
-    max_token_limit=200,  # 요약의 기준이 되는 토큰 길이를 설정합니다.
-    return_messages=True,
+# 스레드 풀 크기 제한
+executor = ThreadPoolExecutor(max_workers=12)
+
+from typing import List, Dict, Any
+from pydantic import BaseModel, Field
+from langchain.memory import ConversationBufferMemory
+from langchain.schema import BaseMessage
+
+class OptimizedChatMemory(ConversationBufferMemory, BaseModel):
+    max_messages: int = Field(default=10, description="Maximum number of message pairs to keep in memory")
+    
+    class Config:
+        arbitrary_types_allowed = True
+    
+    def save_context(self, inputs: Dict[str, Any], outputs: Dict[str, Any]) -> None:
+        """Save context with message limit enforcement"""
+        super().save_context(inputs, outputs)
+        
+        # Trim older messages if exceeding max_messages
+        if len(self.chat_memory.messages) > self.max_messages * 2:
+            self.chat_memory.messages = self.chat_memory.messages[-self.max_messages * 2:]
+            
+    def clear(self) -> None:
+        """Clear memory"""
+        self.chat_memory.clear()
+        
+    @property
+    def memory_size(self) -> int:
+        """Return current number of message pairs"""
+        return len(self.chat_memory.messages) // 2
+
+# 사용 예시
+memory = OptimizedChatMemory(
+    max_messages=5,
+    return_messages=True
 )
 
 conversation_chain = ConversationChain(
