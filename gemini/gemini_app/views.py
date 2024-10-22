@@ -120,44 +120,41 @@ llm_chain = (prompt | llm | StrOutputParser())
 def index(request):
     return render(request, 'index.html')
 
+import asyncio
+import aiohttp
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+
 @csrf_exempt
-def process_speech(request):
+async def process_speech(request):
     if request.method == 'POST':
         user_text = ''
         if request.content_type == 'application/json':
-            # try:
-                data = json.loads(request.body)
-                user_text = data.get('text', '')
-            # except json.JSONDecodeError:
-            #     logger.warning("Failed to parse JSON body")
-        else:
-            user_text = request.POST.get('text', '')
+            data = json.loads(request.body)
+            user_text = data.get('text', '')
 
         if not user_text:
             return JsonResponse({'error': 'No text provided'}, status=400)
-
+            
         try:
-            # LangChain을 사용하여 응답 생성
-            response = conversation_chain.predict(input=user_text)
-            # print(response,'대답')
-            generated_text = response  # response is already a string
+            # LangChain을 사용하여 응답 생성 (동기적 작업을 비동기 함수로 감싸기)
+            response = await asyncio.to_thread(conversation_chain.predict, input=user_text)
+            print(memory)
+            # aiohttp를 사용한 비동기 HTTP 요청 (예시)
+            # async with aiohttp.ClientSession() as session:
+            #     async with session.post('http://localhost:3000/tts', json={'text': response}) as resp:
+            #         if resp.status == 200:
+            #             return JsonResponse({'response': response}, status=200)
+            #         else:
+            #             return JsonResponse({'error': 'Failed to get TTS'}, status=500)
 
-            # express_url = 'http://localhost:3000/tts'  # Express 서버의 엔드포인트
-            # response = requests.post(express_url, json={'text': generated_text})
-
-            # logger.info(f"Received response from LangChain: {generated_text}")
-
-            # if response.status_code == 200:
-            #     # TTS 음성을 Django에서 바로 전달
-            return JsonResponse({'response': generated_text}, status=200)
-            # else:
-            #     return JsonResponse({'error': 'Failed to get TTS'}, status=500)
+            return JsonResponse({'response': response}, status=200)
 
         except Exception as e:
-            # logger.error(f"An error occurred during processing: {str(e)}")
             return JsonResponse({'error': f'An error occurred: {str(e)}'}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=400)
+
 
 
 # # 클래스 기반 뷰
