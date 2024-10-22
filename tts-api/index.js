@@ -24,7 +24,8 @@ app.post('/tts', async (req, res) => {
                 model: 'tts-1',
                 input: input,
                 voice: 'nova',
-                response_format:'opus'
+                response_format:'opus',
+                // speed : 1.1
 
             })
         });
