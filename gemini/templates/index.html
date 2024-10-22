@@ -20,15 +20,15 @@
         </div>
         <div id="inputContainer">
             <input type="text" id="textInput" placeholder="메시지를 입력하세요...">
-            <label for="imageInput" id="imageLabel">
+            <!-- <label for="imageInput" id="imageLabel">
                 <img src="{% static 'images/camera_icon.png' %}" alt="카메라 아이콘" class="camera-icon">
                 이미지 선택
-            </label>
-            <input type="file" id="imageInput" accept="image/*">
+            </label> -->
+            <!-- <input type="file" id="imageInput" accept="image/*"> -->
             <button id="sendButton">전송</button>
         </div>
-        <button onclick="fetchTextFromDjangoAndSendToTTS()">TTS 변환 및 재생 edge</button>
-        <button onclick="getTTS()">TTS 변환 및 재생 직접</button>
+        <!-- <button onclick="fetchTextFromDjangoAndSendToTTS()">TTS 변환 및 재생 edge</button> -->
+        <!-- <button onclick="getTTS()">TTS 변환 및 재생 직접</button> -->
         <svg id="waveform" viewBox="0 0 100 30">
             <!-- Dots will be dynamically added here -->
         </svg>
@@ -149,13 +149,13 @@
             const messageElement = document.createElement('div');
             messageElement.classList.add('chatMessage', 'userMessage');
 
-            if (imageFile) {
-                const img = document.createElement('img');
-                img.src = URL.createObjectURL(imageFile);
-                img.style.maxWidth = '200px';
-                img.style.maxHeight = '200px';
-                messageElement.appendChild(img);
-            }
+            // if (imageFile) {
+            //     const img = document.createElement('img');
+            //     img.src = URL.createObjectURL(imageFile);
+            //     img.style.maxWidth = '200px';
+            //     img.style.maxHeight = '200px';
+            //     messageElement.appendChild(img);
+            // }
 
             const textElement = document.createElement('p');
             textElement.textContent = message;
@@ -266,7 +266,7 @@
                 stopSpeaking(); // Stop any ongoing speech
             }
             // console.time('tts 처리 시간');
-
+            console.time('tts 시간');
             // 2. 이 텍스트를 Express 서버로 전송 (TTS 변환 요청)
             const ttsResponse = await fetch('http://localhost:3000/tts', {
                 method: 'POST',
@@ -414,9 +414,10 @@
 
         function handleTextAndImageInput() {
             const message = textInput.value.trim();
-            const imageFile = imageInput.files[0];
+            const imageFile = 0;
 
             if (message || imageFile) {
+            
                 stopRecording();
                 stopSpeaking();
 
@@ -449,7 +450,7 @@
                 }
 
                 textInput.value = '';
-                imageInput.value = '';
+                // imageInput.value = '';
             }
         }
 
@@ -472,9 +473,12 @@
             })
                 .then(response => response.json())
                 .then(data => {
-                    speakResponse(data.response);
-                    addBotMessage(data.response);
                     console.timeEnd('전체 처리 시간');
+
+                    speakResponse(data.response);
+                    console.timeEnd('tts 시간');
+                    addBotMessage(data.response);
+                    
                 })
                 .catch(error => {
                     console.error('Error:', error);
