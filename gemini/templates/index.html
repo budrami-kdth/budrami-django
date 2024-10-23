@@ -1,37 +1,71 @@
 {% load static %}
-<html>
+<!DOCTYPE html>
+<html lang="ko">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini 음성 인식 및 TTS</title>
+    <title>AI 채팅</title>
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
 </head>
 
 <body>
-    <div class="star-container" id="starContainer"></div>
     <div id="container">
         <div id="header">
-            <img src="{% static 'images/gemini_logo_color.jpg' %}" alt="Gemini Logo" class="logo">
-            <button id="recordButton">말하기 시작</button>
+            <div class="header-left">
+                <div class="back-button">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M15 19L8 12L15 5" stroke="#292D32" stroke-width="1.5" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <img src="{% static 'images/ai_avatar.png' %}" alt="AI Avatar" width="40" height="60">
+                <div class="header-title">
+                    <h1>Counseling Agent</h1>
+                    <div class="online-status">
+                        <div class="status-dot"></div>
+                        <span class="status-text">Online</span>
+                    </div>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="action-button" id="speakerButton">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M2 10V14C2 16 3 17 5 17H6.43C6.8 17 7.17 17.11 7.49 17.3L10.41 19.13C12.93 20.71 15 19.56 15 16.59V7.41C15 4.43 12.93 3.29 10.41 4.87L7.49 6.7C7.17 6.89 6.8 7 6.43 7H5C3 7 2 8 2 10Z"
+                            stroke="#292D32" stroke-width="1.5" />
+                        <path d="M18 8C19.78 10.37 19.78 13.63 18 16" stroke="#292D32" stroke-width="1.5"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M19.83 5.5C22.72 9.35 22.72 14.65 19.83 18.5" stroke="#292D32" stroke-width="1.5"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+            </div>
         </div>
+
         <div id="chatContainer">
-            <div class="chatMessage botMessage">버튼을 클릭해서 대화 시작</div>
+            <div class="chatMessage botMessage">
+                안녕하세요! 저는 여러분의 상담을 도와드릴 상담 에이전트입니다. 마이크를 누르시고, 저에게 편안하게 말을 걸어보세요.
+            </div>
         </div>
+
         <div id="inputContainer">
-            <input type="text" id="textInput" placeholder="메시지를 입력하세요...">
-            <!-- <label for="imageInput" id="imageLabel">
-                <img src="{% static 'images/camera_icon.png' %}" alt="카메라 아이콘" class="camera-icon">
-                이미지 선택
-            </label> -->
-            <!-- <input type="file" id="imageInput" accept="image/*"> -->
-            <button id="sendButton">전송</button>
+            <input type="text" id="textInput" placeholder="메세지를 입력하세요.">
+            <button id="recordButton" aria-label="녹음">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M12 15.5C14.21 15.5 16 13.71 16 11.5V6C16 3.79 14.21 2 12 2C9.79 2 8 3.79 8 6V11.5C8 13.71 9.79 15.5 12 15.5Z"
+                        stroke="#CECECE" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M4.35 9.65V11.35C4.35 15.57 7.78 19 12 19C16.22 19 19.65 15.57 19.65 11.35V9.65"
+                        stroke="#CECECE" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M12 19V22" stroke="#CECECE" stroke-width="1.5" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg>
+            </button>
+            <button id="sendButton">
+                <img src="{% static 'images/send_button.png' %}" alt="send button">
+            </button>
         </div>
-        <!-- <button onclick="fetchTextFromDjangoAndSendToTTS()">TTS 변환 및 재생 edge</button> -->
-        <!-- <button onclick="getTTS()">TTS 변환 및 재생 직접</button> -->
-        <svg id="waveform" viewBox="0 0 100 30">
-            <!-- Dots will be dynamically added here -->
-        </svg>
     </div>
 
     <script>
@@ -48,7 +82,6 @@
         let silenceTimeout;
         let currentAudio = null;
 
-        // 오디오 재생을 제어하는 함수
         function stopCurrentAudio() {
             if (currentAudio) {
                 currentAudio.pause();
@@ -58,69 +91,6 @@
             }
         }
 
-
-        // // Initialize Web Speech API
-        // if ('webkitSpeechRecognition' in window) {
-        //     recognition = new webkitSpeechRecognition();
-        //     recognition.continuous = true;
-        //     recognition.interimResults = true;
-        //     recognition.lang = 'ko-KR';
-
-        //     recognition.onstart = function () {
-        //         isListening = true;
-        //         recordButton.textContent = "말하기 중지";
-        //         startAudioAnalysis();
-        //     };
-
-        //     recognition.onresult = function (event) {
-        //         clearTimeout(silenceTimeout);
-        //         let finalTranscript = '';
-        //         let interimTranscript = '';
-
-        //         for (let i = event.resultIndex; i < event.results.length; ++i) {
-        //             if (event.results[i].isFinal) {
-        //                 finalTranscript += event.results[i][0].transcript + ' ';
-        //             } else {
-        //                 interimTranscript += event.results[i][0].transcript;
-        //             }
-        //         }
-
-        //         if (interimTranscript.trim()) {
-        //             updateUserMessage(interimTranscript);
-        //             if (isSpeaking) {
-        //                 stopSpeaking(); // Stop TTS when user starts speaking
-        //             }
-        //         }
-
-        //         if (finalTranscript.trim()) {
-        //             const existingInterim = document.querySelector('.userMessage.interim');
-        //             if (existingInterim) {
-        //                 existingInterim.remove();
-        //             }
-        //             addUserMessage(finalTranscript);
-        //             sendToGemini(finalTranscript);
-        //             startNewSTTSession(); // Start a new session after final result
-        //         }
-
-        //         // Reset silence detection
-        //         setSilenceDetection();
-        //     };
-
-        //     recognition.onerror = function (event) {
-        //         console.error('Speech recognition error', event.error);
-        //         startNewSTTSession(); // Restart on error
-        //     };
-
-        //     recognition.onend = function () {
-        //         if (isListening) {
-        //             startNewSTTSession();  // Automatically restart recognition
-        //         } else {
-        //             recordButton.textContent = "말하기 시작";
-        //             stopAudioAnalysis();
-        //         }
-        //     };
-        // }
-
         if ('webkitSpeechRecognition' in window) {
             recognition = new webkitSpeechRecognition();
             recognition.continuous = true;
@@ -129,7 +99,10 @@
 
             recognition.onstart = function () {
                 isListening = true;
-                recordButton.textContent = "말하기 중지";
+                recordButton.style.background = '#3369FF';
+                recordButton.style.color = 'white';
+                recordButton.style.borderRadius = '50%';  // 버튼을 동그랗게 설정
+                recordButton.style.transition = 'all 0.3s ease';  // 애니메이션 적용
                 startAudioAnalysis();
             };
 
@@ -138,10 +111,9 @@
                 let finalTranscript = '';
                 let interimTranscript = '';
 
-                // 사용자가 새로 말하기 시작할 때만 TTS 중단
                 if (event.results.length > 0 &&
-                    event.resultIndex === 0 && // 새로운 발화의 시작
-                    event.results[0][0].transcript.trim().length > 0) { // 실제 음성이 감지됨
+                    event.resultIndex === 0 &&
+                    event.results[0][0].transcript.trim().length > 0) {
                     stopCurrentAudio();
                 }
 
@@ -179,7 +151,8 @@
                 if (isListening) {
                     startNewSTTSession();
                 } else {
-                    recordButton.textContent = "말하기 시작";
+                    recordButton.style.background = 'transparent';
+                    recordButton.style.color = '#7dc9ff';
                     stopAudioAnalysis();
                 }
             };
@@ -188,8 +161,8 @@
         function setSilenceDetection() {
             clearTimeout(silenceTimeout);
             silenceTimeout = setTimeout(() => {
-                startNewSTTSession(); // Start a new session on silence
-            }, 3000); // Increased silence detection time to 3 seconds
+                startNewSTTSession();
+            }, 3000);
         }
 
         function startNewSTTSession() {
@@ -217,22 +190,12 @@
             }
         }
 
-        function addUserMessage(message, imageFile = null) {
+        function addUserMessage(message) {
             const messageElement = document.createElement('div');
             messageElement.classList.add('chatMessage', 'userMessage');
-
-            // if (imageFile) {
-            //     const img = document.createElement('img');
-            //     img.src = URL.createObjectURL(imageFile);
-            //     img.style.maxWidth = '200px';
-            //     img.style.maxHeight = '200px';
-            //     messageElement.appendChild(img);
-            // }
-
             const textElement = document.createElement('p');
             textElement.textContent = message;
             messageElement.appendChild(textElement);
-
             chatContainer.appendChild(messageElement);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
@@ -253,30 +216,20 @@
             }
         }
 
-        // function startRecording() {
-        //     if (recognition) {
-        //         if (isSpeaking) {
-        //             stopSpeaking(); // Stop any ongoing TTS
-        //         }
-        //         recognition.start();
-        //         setSilenceDetection();
-        //     }
-        // }
-
         function startRecording() {
             if (recognition) {
-                stopCurrentAudio(); // 음성 인식 시작 시 재생 중인 오디오 중지
+                stopCurrentAudio();
                 recognition.start();
                 setSilenceDetection();
             }
         }
 
-
         function stopRecording() {
             if (recognition) {
                 recognition.stop();
                 isListening = false;
-                recordButton.textContent = "말하기 시작";
+                recordButton.style.background = 'transparent';
+                recordButton.style.color = '#3369FF';
                 stopAudioAnalysis();
                 clearTimeout(silenceTimeout);
             }
@@ -320,22 +273,22 @@
                 analyser.getByteFrequencyData(dataArray);
 
                 waveform.innerHTML = '';
-                const dotCount = 31;
-                const centerIndex = Math.floor(dotCount / 2);
+                const barCount = 64;
+                const barWidth = 100 / barCount;
 
-                for (let i = 0; i < dotCount; i++) {
-                    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-                    const x = (i / (dotCount - 1)) * 100;
-                    const y = 15;
-                    const dataIndex = Math.floor(bufferLength / 2) + (i - centerIndex) * 2;
-                    const r = (dataArray[dataIndex] / 256) * 4 + 1;
+                for (let i = 0; i < barCount; i++) {
+                    const bar = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                    const x = i * barWidth;
+                    const height = (dataArray[i] / 256) * 30; // 최대 높이를 30으로 설정 (전체 높이의 절반)
+                    const y = 30 - height; // 중앙을 기준으로 위로 그리기
 
-                    dot.setAttribute("cx", x);
-                    dot.setAttribute("cy", y);
-                    dot.setAttribute("r", r);
-                    dot.classList.add("dot");
+                    bar.setAttribute("x", x);
+                    bar.setAttribute("y", y);
+                    bar.setAttribute("width", barWidth * 0.8);
+                    bar.setAttribute("height", height * 2); // 위아래 대칭되게 그리기
+                    bar.setAttribute("class", "waveform-bar");
 
-                    waveform.appendChild(dot);
+                    waveform.appendChild(bar);
                 }
             }
 
@@ -343,7 +296,7 @@
         }
 
         async function speakResponse(text) {
-            stopCurrentAudio(); // 새로운 TTS 시작 전에 이전 TTS 중지
+            stopCurrentAudio();
 
             console.time('tts 시간');
             try {
@@ -372,128 +325,18 @@
             console.timeEnd('tts 시간');
         }
 
-
-
-
-
-        function stopSpeaking() {
-            if (isSpeaking) {
-                speechSynthesis.cancel();
-                currentUtterance = null;
-                isSpeaking = false;
-            }
-        }
-
-        speechSynthesis.onvoiceschanged = function () {
-            const voices = speechSynthesis.getVoices();
-            console.log(voices);
-        };
-
-        // function addStars() {
-        //     const starContainer = document.getElementById('starContainer');
-        //     const containerWidth = window.innerWidth;
-        //     const containerHeight = window.innerHeight;
-        //     const starCount = 30;
-        //     const minDistance = 100;
-
-        //     const stars = [];
-
-        //     function checkDistance(x, y) {
-        //         for (let star of stars) {
-        //             const dx = x - star.x;
-        //             const dy = y - star.y;
-        //             const distance = Math.sqrt(dx * dx + dy * dy);
-        //             if (distance < minDistance) {
-        //                 return false;
-        //             }
-        //         }
-        //         return true;
-        //     }
-
-        //     for (let i = 0; i < starCount; i++) {
-        //         let attempts = 0;
-        //         let x, y;
-        //         do {
-        //             x = Math.random() * containerWidth;
-        //             y = Math.random() * containerHeight;
-        //             attempts++;
-        //             if (attempts > 100) break;
-        //         } while (!checkDistance(x, y));
-
-        //         if (attempts <= 100) {
-        //             const star = document.createElement('div');
-        //             star.classList.add('star');
-
-        //             star.style.left = `${x}px`;
-        //             star.style.top = `${y}px`;
-
-        //             const size = 30 + Math.random() * 20;
-        //             star.style.width = `${size}px`;
-        //             star.style.height = `${size}px`;
-
-        //             const animationDuration = 2 + Math.random() * 3;
-        //             star.style.animationDuration = `${animationDuration}s`;
-        //             star.style.animationDelay = `${Math.random() * animationDuration}s`;
-
-        //             starContainer.appendChild(star);
-        //             stars.push({ x, y });
-        //         }
-        //     }
-        // }
         function handleTextAndImageInput() {
             const message = textInput.value.trim();
 
             if (message) {
-                stopCurrentAudio(); // 새 메시지 입력 시 재생 중인 오디오 중지
+                stopCurrentAudio();
                 stopRecording();
+
                 addUserMessage(message);
                 sendToGemini(message);
                 textInput.value = '';
             }
         }
-
-
-        // function handleTextAndImageInput() {
-        //     const message = textInput.value.trim();
-        //     const imageFile = 0;
-
-        //     if (message || imageFile) {
-
-        //         stopRecording();
-        //         stopSpeaking();
-
-        //         addUserMessage(message, imageFile);
-
-        //         if (imageFile) {
-        //             const formData = new FormData();
-        //             formData.append('image', imageFile);
-        //             if (message) formData.append('text', message);
-
-        //             fetch('/process_speech/', {
-        //                 method: 'POST',
-        //                 body: formData,
-        //                 headers: {
-        //                     'X-CSRFToken': getCookie('csrftoken')
-        //                 }
-        //             })
-        //                 .then(response => response.json())
-        //                 .then(data => {
-        //                     speakResponse(data.response);
-        //                     addBotMessage(data.response);
-        //                 })
-        //                 .catch(error => {
-        //                     console.error('Error:', error);
-        //                     addBotMessage("죄송합니다. 오류가 발생했습니다.");
-        //                     startNewSTTSession();
-        //                 });
-        //         } else if (message) {
-        //             sendToGemini(message);
-        //         }
-
-        //         textInput.value = '';
-        //         // imageInput.value = '';
-        //     }
-        // }
 
         sendButton.addEventListener('click', handleTextAndImageInput);
         textInput.addEventListener('keypress', function (e) {
@@ -527,33 +370,6 @@
             }
         }
 
-        // function sendToGemini(text) {
-        //     console.time('전체 처리 시간');
-        //     fetch('/process_speech/', {
-        //         method: 'POST',
-        //         headers: {
-        //             'Content-Type': 'application/json',
-        //             'X-CSRFToken': getCookie('csrftoken')
-        //         },
-        //         body: JSON.stringify({ text: text })
-        //     })
-        //         .then(response => response.json())
-        //         .then(data => {
-        //             console.timeEnd('전체 처리 시간');
-
-        //             speakResponse(data.response);
-        //             console.timeEnd('tts 시간');
-        //             addBotMessage(data.response);
-
-        //         })
-        //         .catch(error => {
-        //             console.error('Error:', error);
-        //             addBotMessage("죄송합니다. 오류가 발생했습니다.");
-        //             startNewSTTSession();
-        //         });
-
-        // }
-
         function getCookie(name) {
             let cookieValue = null;
             if (document.cookie && document.cookie !== '') {
@@ -568,68 +384,6 @@
             }
             return cookieValue;
         }
-
-
-        // async function fetchTextFromDjangoAndSendToTTS() {
-        //     // 1. Django 서버에서 텍스트 가져오기
-        //     console.time('fetchText');  // 고유한 타이머 이름 사용
-        //     const response = await fetch('/tts_view/');
-        //     const data = await response.json();
-        //     const text = data.message;  // Django에서 받은 텍스트
-
-        //     // 2. 이 텍스트를 Express 서버로 전송 (TTS 변환 요청)
-        //     console.time('sendToTTS');  // 또 다른 고유한 타이머 이름 사용
-        //     const ttsResponse = await fetch('http://localhost:3000/tts', {
-        //         method: 'POST',
-        //         headers: {
-        //             'Content-Type': 'application/json'
-        //         },
-        //         body: JSON.stringify({ input: text })
-        //     });
-        //     console.timeEnd('sendToTTS');  // 타이머 종료
-
-        //     // 3. TTS 변환된 음성 파일 받기
-        //     const audioBlob = await ttsResponse.blob();
-        //     const audioUrl = URL.createObjectURL(audioBlob);
-
-        //     // 4. 프론트엔드에서 오디오 재생
-        //     const audio = new Audio(audioUrl);
-        //     audio.play();
-        //     console.timeEnd('fetchText');  // 타이머 종료
-        // }
-
-        // async function getTTS(text) {
-        //     const url = "/tts-without-edge/";  // Edge function 사용 안 함
-
-        //     console.time('getTTS');  // 고유한 타이머 이름 사용
-        //     const response = await fetch(url, {
-        //         method: "POST",
-        //         headers: {
-        //             "Content-Type": "application/json",
-        //             'X-CSRFToken': getCookie('csrftoken')
-        //         },
-        //         body: JSON.stringify({ text: text }),
-        //     });
-
-        //     // Blob 형태로 음성 파일을 받음
-        //     const audioBlob = await response.blob();
-        //     const latency = response.headers.get('Latency');
-        //     console.log(`Latency: ${latency} seconds`);
-
-        //     // Blob 데이터를 URL로 변환 후 오디오로 재생
-        //     const audioUrl = URL.createObjectURL(audioBlob);
-        //     const audio = new Audio(audioUrl);
-        //     audio.play();
-        //     console.timeEnd('getTTS');  // 타이머 종료
-
-        //     return audioUrl;  // 필요 시 audio URL 반환
-        // }
-
-        // window.addEventListener('load', addStars);
-        window.addEventListener('resize', () => {
-            document.getElementById('starContainer').innerHTML = '';
-            // addStars();
-        });
     </script>
 </body>
 
