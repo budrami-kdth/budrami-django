@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "budrami-django"
+version = "0.1.0"
+description = ""
+authors = ["Blake Jeong <jmchan2432@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "3.11.1"
+django = "^5.1.2"
+langchain = "^0.3.4"
+langchain-openai = "^0.2.3"
+langchain-community = "^0.3.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

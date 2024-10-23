@@ -37,7 +37,7 @@ body {
     padding: 8px 16px;
     border: none;
     border-radius: 20px;
-    background-color: #1a73e8;
+    background-color: #8B4513;
     color: white;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -45,7 +45,7 @@ body {
 }
 
 #recordButton:hover {
-    background-color: #1558d6;
+    background-color: #5D3311;
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
@@ -84,7 +84,7 @@ body {
 }
 
 .logo {
-    width: 80px;
+    width: 150px;
     height: auto;
 }
 
@@ -153,7 +153,7 @@ body {
 
 #sendButton {
     padding: 8px 16px;
-    background-color: #1a73e8;
+    background-color: #8B4513;
     color: white;
     border: none;
     border-radius: 4px;
@@ -162,7 +162,7 @@ body {
 }
 
 #sendButton:hover {
-    background-color: #1558d6;
+    background-color: #5D3311;
 }
 
 #imageInput {
