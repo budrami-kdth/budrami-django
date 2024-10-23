@@ -114,7 +114,7 @@ def index(request):
 
 # 음성 처리 및 응답 생성 뷰
 @csrf_exempt
-def process_speech(request):
+async def process_speech(request):
     if request.method == 'POST':
         user_text = ''
         # JSON 요청 처리
@@ -133,7 +133,7 @@ def process_speech(request):
         # 텍스트가 비어있는 경우 처리
         if not user_text:
             return JsonResponse({'error': 'No text provided'}, status=400)
-
+            
         try:
             # 세션 설정
             config = {"configurable": {"session_id": session_id}}
