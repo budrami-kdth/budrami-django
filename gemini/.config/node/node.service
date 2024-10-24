@@ -1,0 +1,18 @@
+[Unit]
+Description=Node.js TTS API Service
+After=network.target
+
+[Service]
+Environment=PORT=3389
+Environment=BASE_PATH=/api/tts
+ExecStart=/root/.nvm/versions/node/v22.9.0/bin/node /home/ubuntu/budrami-django/tts-api/index.js
+WorkingDirectory=/home/ubuntu/budrami-django/tts-api
+Restart=always
+Environment=NODE_ENV=production
+User=root
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=tts-api
+
+[Install]
+WantedBy=multi-user.target

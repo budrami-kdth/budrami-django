@@ -17,6 +17,8 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
@@ -26,7 +28,7 @@ SECRET_KEY = "django-insecure-tv5a6_ulp&%vp*%$29@de434fjocw*9$kqbkiu=4o_q8x^3n71
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["211.188.51.134","127.0.0.1", 'budrami.kro.kr']
 
 
 # Application definition
@@ -71,13 +73,10 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "gemini.wsgi.application"
 
-# STATIC_URL = 'static/'
-# STATICFILES_DIRS = [
-#     os.path.join(BASE_DIR, 'gemini_app/static'),
-# ]
-# STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-# Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
 
 DATABASES = {
     "default": {
@@ -109,9 +108,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = 'ko-kr'
 
-TIME_ZONE = "UTC"
+TIME_ZONE = 'Asia/Seoul'
 
 USE_I18N = True
 
