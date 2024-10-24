@@ -47,6 +47,9 @@
         let microphone;
         let silenceTimeout;
         let currentAudio = null;
+        let textBuffer = '';
+        let bufferTimeout;
+
 
         // 오디오 재생을 제어하는 함수
         function stopCurrentAudio() {
@@ -58,74 +61,12 @@
             }
         }
 
-
-        // // Initialize Web Speech API
-        // if ('webkitSpeechRecognition' in window) {
-        //     recognition = new webkitSpeechRecognition();
-        //     recognition.continuous = true;
-        //     recognition.interimResults = true;
-        //     recognition.lang = 'ko-KR';
-
-        //     recognition.onstart = function () {
-        //         isListening = true;
-        //         recordButton.textContent = "말하기 중지";
-        //         startAudioAnalysis();
-        //     };
-
-        //     recognition.onresult = function (event) {
-        //         clearTimeout(silenceTimeout);
-        //         let finalTranscript = '';
-        //         let interimTranscript = '';
-
-        //         for (let i = event.resultIndex; i < event.results.length; ++i) {
-        //             if (event.results[i].isFinal) {
-        //                 finalTranscript += event.results[i][0].transcript + ' ';
-        //             } else {
-        //                 interimTranscript += event.results[i][0].transcript;
-        //             }
-        //         }
-
-        //         if (interimTranscript.trim()) {
-        //             updateUserMessage(interimTranscript);
-        //             if (isSpeaking) {
-        //                 stopSpeaking(); // Stop TTS when user starts speaking
-        //             }
-        //         }
-
-        //         if (finalTranscript.trim()) {
-        //             const existingInterim = document.querySelector('.userMessage.interim');
-        //             if (existingInterim) {
-        //                 existingInterim.remove();
-        //             }
-        //             addUserMessage(finalTranscript);
-        //             sendToGemini(finalTranscript);
-        //             startNewSTTSession(); // Start a new session after final result
-        //         }
-
-        //         // Reset silence detection
-        //         setSilenceDetection();
-        //     };
-
-        //     recognition.onerror = function (event) {
-        //         console.error('Speech recognition error', event.error);
-        //         startNewSTTSession(); // Restart on error
-        //     };
-
-        //     recognition.onend = function () {
-        //         if (isListening) {
-        //             startNewSTTSession();  // Automatically restart recognition
-        //         } else {
-        //             recordButton.textContent = "말하기 시작";
-        //             stopAudioAnalysis();
-        //         }
-        //     };
-        // }
-
         if ('webkitSpeechRecognition' in window) {
             recognition = new webkitSpeechRecognition();
             recognition.continuous = true;
             recognition.interimResults = true;
             recognition.lang = 'ko-KR';
+            recognition.audioThreshold = 0.2; // 0-1 사이 값, 높을수록 덜 민감
 
             recognition.onstart = function () {
                 isListening = true;
@@ -140,31 +81,32 @@
 
                 // 사용자가 새로 말하기 시작할 때만 TTS 중단
                 if (event.results.length > 0 &&
-                    event.resultIndex === 0 && // 새로운 발화의 시작
-                    event.results[0][0].transcript.trim().length > 0) { // 실제 음성이 감지됨
+                    event.resultIndex === 0 &&
+                    event.results[0][0].transcript.trim().length > 0) {
                     stopCurrentAudio();
                 }
 
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
                         finalTranscript += event.results[i][0].transcript + ' ';
+                        textBuffer += event.results[i][0].transcript + ' '; // 버퍼에 추가
                     } else {
                         interimTranscript += event.results[i][0].transcript;
                     }
                 }
 
+                // 임시 결과는 화면에만 표시
                 if (interimTranscript.trim()) {
-                    updateUserMessage(interimTranscript);
-                }
-
-                if (finalTranscript.trim()) {
-                    const existingInterim = document.querySelector('.userMessage.interim');
-                    if (existingInterim) {
-                        existingInterim.remove();
+                    const messageElement = document.querySelector('.userMessage.interim');
+                    if (messageElement) {
+                        messageElement.textContent = textBuffer + interimTranscript; // 버퍼 + 현재 임시 텍스트
+                    } else {
+                        const newElement = document.createElement('div');
+                        newElement.classList.add('chatMessage', 'userMessage', 'interim');
+                        newElement.textContent = textBuffer + interimTranscript;
+                        chatContainer.appendChild(newElement);
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
                     }
-                    addUserMessage(finalTranscript);
-                    sendToGemini(finalTranscript);
-                    startNewSTTSession();
                 }
 
                 setSilenceDetection();
@@ -188,8 +130,17 @@
         function setSilenceDetection() {
             clearTimeout(silenceTimeout);
             silenceTimeout = setTimeout(() => {
-                startNewSTTSession(); // Start a new session on silence
-            }, 3000); // Increased silence detection time to 3 seconds
+                if (textBuffer.trim()) {
+                    const existingInterim = document.querySelector('.userMessage.interim');
+                    if (existingInterim) {
+                        existingInterim.remove();
+                    }
+                    addUserMessage(textBuffer.trim());
+                    sendToGemini(textBuffer.trim());
+                    textBuffer = ''; // 버퍼 초기화
+                }
+                startNewSTTSession();
+            }, 1500);
         }
 
         function startNewSTTSession() {
