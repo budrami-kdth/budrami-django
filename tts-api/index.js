@@ -1,18 +1,19 @@
-// local-edge-server.js
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
+const port = process.env.PORT || 3389;
+const BASE_PATH = process.env.BASE_PATH || '/api/tts'; // 기본 경로 설정
+
 app.use(cors());
 app.use(express.json());
 
-// local-edge-server.js
-app.post('/tts', async (req, res) => {
-    console.log('Received request at /tts'); // 요청 로그 추가
+app.post('/api/tts', async (req, res) => {
+    // console.log('Received request at /api/tts');
     try {
         const { input } = req.body;
-        console.log('Received text:', input); // 받은 텍스트 로그 추가
+        // console.log('Received text:', input);
         
         const response = await fetch('https://api.openai.com/v1/audio/speech', {
             method: 'POST',
@@ -24,24 +25,29 @@ app.post('/tts', async (req, res) => {
                 model: 'tts-1',
                 input: input,
                 voice: 'nova',
-                response_format:'opus',
-                // speed : 1.1
-
+                response_format: 'opus',
             })
         });
-        console.log('response:', response)
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('OpenAI API Error:', errorText);
+            throw new Error(`OpenAI API error: ${response.status}`);
+        }
+
         const audioBuffer = await response.arrayBuffer();
-        res.set('Content-Type', 'audio/mpeg');
-        console.log('response:', response)
+        // console.log('Received audio buffer size:', audioBuffer.byteLength);
+        
+        res.set('Content-Type', 'audio/opus');
         res.send(Buffer.from(audioBuffer));
+        
     } catch (error) {
-        console.error('Error in /tts:', error.message);
+        // console.error('Error in /tts:', error);
         res.status(500).json({ error: error.message });
     }
 });
 
-
-
-app.listen(3000, () => {
-  console.log('Local Edge Function server running on port 3000');
+app.listen(port, () => {
+    console.log(`Local Edge Function server running on port ${port}`);
+    console.log(`TTS endpoint available at ${BASE_PATH}`);
 });
