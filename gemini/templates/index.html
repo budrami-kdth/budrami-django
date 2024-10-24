@@ -49,6 +49,8 @@
         let currentAudio = null;
         let textBuffer = '';
         let bufferTimeout;
+        let lastTranscriptTime = Date.now();
+        let checkInterval = null;
 
 
         // 오디오 재생을 제어하는 함수
@@ -66,7 +68,7 @@
             recognition.continuous = true;
             recognition.interimResults = true;
             recognition.lang = 'ko-KR';
-            recognition.audioThreshold = 0.2; // 0-1 사이 값, 높을수록 덜 민감
+            recognition.audioThreshold = 0.3; // 0-1 사이 값, 높을수록 덜 민감
 
             recognition.onstart = function () {
                 isListening = true;
@@ -79,7 +81,8 @@
                 let finalTranscript = '';
                 let interimTranscript = '';
 
-                // 사용자가 새로 말하기 시작할 때만 TTS 중단
+                lastTranscriptTime = Date.now();
+
                 if (event.results.length > 0 &&
                     event.resultIndex === 0 &&
                     event.results[0][0].transcript.trim().length > 0) {
@@ -89,17 +92,16 @@
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
                         finalTranscript += event.results[i][0].transcript + ' ';
-                        textBuffer += event.results[i][0].transcript + ' '; // 버퍼에 추가
+                        textBuffer += event.results[i][0].transcript + ' ';
                     } else {
                         interimTranscript += event.results[i][0].transcript;
                     }
                 }
 
-                // 임시 결과는 화면에만 표시
                 if (interimTranscript.trim()) {
                     const messageElement = document.querySelector('.userMessage.interim');
                     if (messageElement) {
-                        messageElement.textContent = textBuffer + interimTranscript; // 버퍼 + 현재 임시 텍스트
+                        messageElement.textContent = textBuffer + interimTranscript;
                     } else {
                         const newElement = document.createElement('div');
                         newElement.classList.add('chatMessage', 'userMessage', 'interim');
@@ -109,7 +111,7 @@
                     }
                 }
 
-                setSilenceDetection();
+                startSilenceDetection();
             };
 
             recognition.onerror = function (event) {
@@ -123,24 +125,51 @@
                 } else {
                     recordButton.textContent = "말하기 시작";
                     stopAudioAnalysis();
+                    if (checkInterval) {
+                        clearInterval(checkInterval);
+                    }
                 }
             };
         }
 
-        function setSilenceDetection() {
-            clearTimeout(silenceTimeout);
-            silenceTimeout = setTimeout(() => {
-                if (textBuffer.trim()) {
+        // function setSilenceDetection() {
+        //     clearTimeout(silenceTimeout);
+        //     silenceTimeout = setTimeout(() => {
+        //         if (textBuffer.trim()) {
+        //             const existingInterim = document.querySelector('.userMessage.interim');
+        //             if (existingInterim) {
+        //                 existingInterim.remove();
+        //             }
+        //             addUserMessage(textBuffer.trim());
+        //             sendToGemini(textBuffer.trim());
+        //             textBuffer = ''; // 버퍼 초기화
+        //         }
+        //         startNewSTTSession();
+        //     }, 2000);
+        // }
+
+        function startSilenceDetection() {
+            if (checkInterval) {
+                clearInterval(checkInterval);
+            }
+
+            checkInterval = setInterval(() => {
+                const currentTime = Date.now();
+                const silenceDuration = currentTime - lastTranscriptTime;
+
+                if (silenceDuration > 750 && textBuffer.trim()) {
+                    clearInterval(checkInterval);
                     const existingInterim = document.querySelector('.userMessage.interim');
                     if (existingInterim) {
                         existingInterim.remove();
                     }
                     addUserMessage(textBuffer.trim());
                     sendToGemini(textBuffer.trim());
-                    textBuffer = ''; // 버퍼 초기화
+                    textBuffer = '';
+
+                    startNewSTTSession();
                 }
-                startNewSTTSession();
-            }, 1500);
+            }, 100);
         }
 
         function startNewSTTSession() {
@@ -149,7 +178,7 @@
                 setTimeout(() => {
                     if (isListening) {
                         recognition.start();
-                        setSilenceDetection();
+                        // setSilenceDetection();
                     }
                 }, 100);
             }
@@ -218,7 +247,7 @@
             if (recognition) {
                 stopCurrentAudio(); // 음성 인식 시작 시 재생 중인 오디오 중지
                 recognition.start();
-                setSilenceDetection();
+                // setSilenceDetection();
             }
         }
 
@@ -229,7 +258,9 @@
                 isListening = false;
                 recordButton.textContent = "말하기 시작";
                 stopAudioAnalysis();
-                clearTimeout(silenceTimeout);
+                if (checkInterval) {
+                    clearInterval(checkInterval);
+                }
             }
         }
 
@@ -298,11 +329,11 @@
 
             console.time('tts 시간');
             try {
-                const ttsResponse = await fetch('http://localhost:3000/tts', {
+                const ttsResponse = await fetch('/api/tts', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
+                        // 'X-CSRFToken': getCookie('csrftoken')
                     },
                     body: JSON.stringify({ input: text })
                 });
@@ -323,7 +354,66 @@
             console.timeEnd('tts 시간');
         }
 
+        // async function speakResponse(text) {
+        //     stopCurrentAudio();
+        //     console.time('tts 시간');
+        //     try {
+        //         const ttsResponse = await fetch('/api/tts', {
+        //             method: 'POST',
+        //             headers: {
+        //                 'Content-Type': 'application/json',
+        //             },
+        //             body: JSON.stringify({ input: text })
+        //         });
 
+        //         if (!ttsResponse.ok) {
+        //             throw new Error(`HTTP error! status: ${ttsResponse.status}`);
+        //         }
+
+        //         // 응답 헤더 확인
+        //         console.log('Response headers:', Object.fromEntries(ttsResponse.headers.entries()));
+
+        //         const audioBlob = await ttsResponse.blob();
+        //         console.log('Audio Blob:', audioBlob); // Blob 정보 확인
+        //         console.log('Blob type:', audioBlob.type); // Blob의 MIME 타입 확인
+
+        //         const audioUrl = URL.createObjectURL(audioBlob);
+        //         console.log('Audio URL:', audioUrl);
+
+        //         currentAudio = new Audio();
+
+        //         // 오디오 객체의 이벤트 리스너 추가
+        //         currentAudio.addEventListener('loadedmetadata', () => {
+        //             console.log('Audio metadata loaded');
+        //         });
+
+        //         currentAudio.addEventListener('canplay', () => {
+        //             console.log('Audio can play');
+        //         });
+
+        //         currentAudio.onerror = (e) => {
+        //             console.error('Audio Error:', e);
+        //             console.error('Audio Error Code:', currentAudio.error.code);
+        //             console.error('Audio Error Message:', currentAudio.error.message);
+        //         };
+
+        //         currentAudio.onended = () => {
+        //             URL.revokeObjectURL(audioUrl);
+        //             currentAudio = null;
+        //         };
+
+        //         currentAudio.src = audioUrl;
+        //         await currentAudio.play();
+
+        //     } catch (error) {
+        //         console.error('TTS Error:', error);
+        //         // 에러 스택 트레이스 출력
+        //         if (error.stack) {
+        //             console.error('Error stack:', error.stack);
+        //         }
+        //     }
+        //     console.timeEnd('tts 시간');
+        // }
 
 
 

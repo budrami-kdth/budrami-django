@@ -20,6 +20,8 @@ load_dotenv()
 # OpenAI API 키 설정
 openai_api_key = os.environ["OPENAI_API_KEY"]
 
+
+
 # 상담 프롬프트 정의
 middle_life_history = '''
 {역할:
@@ -65,7 +67,7 @@ prompt = ChatPromptTemplate.from_messages(
 
 # LLM(Language Model) 초기화
 # GPT-4를 사용하며, temperature를 0.2로 설정하여 일관된 응답 유도
-llm = ChatOpenAI(model='gpt-4o', temperature=0.2)
+llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.2)
 chain = prompt | llm | StrOutputParser()
 # 세션 저장소 초기화
 store = {}
@@ -86,13 +88,12 @@ chain_with_history = RunnableWithMessageHistory(
 
 # 메인 페이지 렌더링
 def index(request):
+    request.session['count'] = 0  # 세션에 count 저장
     return render(request, 'index.html')
 
-count = 0
 # 음성 처리 및 응답 생성 뷰
 @csrf_exempt
 def process_speech(request):
-    global count
     if request.method == 'POST':
         user_text = ''
         # JSON 요청 처리
@@ -113,13 +114,16 @@ def process_speech(request):
             return JsonResponse({'error': 'No text provided'}, status=400)
 
         try:
+            # 세션에서 count 가져오기 (초기값은 0)
+            count = request.session.get('count', 0)
+
             if count > 5:
                 user_text = "#### 대화 종료 ####"
                 count = 0
 
             # 세션 설정
             config = {"configurable": {"session_id": session_id}}
-    
+
             result = chain_with_history.invoke({
                 "input": user_text,
                 "middle_life_history": middle_life_history
@@ -128,6 +132,7 @@ def process_speech(request):
             # 결과에서 응답 추출
             response = result
             count += 1
+            request.session['count'] = count  # 세션에 count 업데이트
             return JsonResponse({'response': response})
 
         except Exception as e:
