@@ -6,32 +6,92 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gemini 음성 인식 및 TTS</title>
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <style>
+        /* 새로운 main-container를 flex 컨테이너로 설정하여 OBS 화면과 채팅 컨테이너를 나란히 배치 */
+        .main-container {
+            display: flex;
+            align-items: flex-start;
+            width: 85vw;
+            height: 90vh;
+        }
+
+        /* OBS 아바타 화면 스타일 */
+        .obs-screen {
+            width: 30%;
+            /* 화면의 30% 차지 */
+            height: 85vh;
+            /* 높이는 80% */
+            position: relative;
+            /* 상대 위치 설정 */
+            border-radius: 15px;
+            /* 모서리를 둥글게 */
+            overflow: hidden;
+            /* 내용 넘치면 잘림 */
+            margin-left: auto;
+        }
+
+        video {
+            width: 100%;
+            /* 비디오 너비를 100%로 설정 */
+            height: 100%;
+            /* 비디오 높이를 100%로 설정 */
+            object-fit: cover;
+            /* 비디오를 박스에 맞게 채움 */
+        }
+
+        /* 기존 컨테이너를 오른쪽으로 이동 */
+        #container {
+            width: 100%;
+            height: 80vh;
+            overflow: hidden;
+            margin-left: 100px;
+            /* 오른쪽 정렬 */
+        }
+
+        /* body 스타일 */
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            color: #333;
+            overflow-x: hidden;
+            position: relative;
+            gap: 10%;
+            /* 화면의 중간에 간격 추가 */
+        }
+    </style>
 </head>
 
 <body>
-    <div class="star-container" id="starContainer"></div>
-    <div id="container">
-        <div id="header">
-            <img src="{% static 'images/liferary_logo.png' %}" alt="라이프러리" class="logo">
-            <button id="recordButton">말하기 시작</button>
+    <!-- 전체 화면을 차지하는 main-container -->
+    <div class="main-container">
+        <!-- 왼쪽에 OBS 아바타 화면 추가 -->
+        <div class="obs-screen">
+            <video id="video" autoplay playsinline></video>
         </div>
-        <div id="chatContainer">
-            <div class="chatMessage botMessage">버튼을 클릭해서 대화 시작</div>
+
+        <!-- 오른쪽에 기존 container 배치 -->
+        <div id="container">
+            <div id="header">
+                <img src="{% static 'images/liferary_logo.png' %}" alt="라이프러리" class="logo">
+                <button id="recordButton">말하기 시작</button>
+            </div>
+
+            <div id="chatContainer">
+                <div class="chatMessage botMessage">버튼을 클릭해서 대화 시작</div>
+            </div>
+
+            <div id="inputContainer">
+                <input type="text" id="textInput" placeholder="메시지를 입력하세요...">
+                <button id="sendButton">전송</button>
+            </div>
+
+            <svg id="waveform" viewBox="0 0 100 30"></svg>
         </div>
-        <div id="inputContainer">
-            <input type="text" id="textInput" placeholder="메시지를 입력하세요...">
-            <!-- <label for="imageInput" id="imageLabel">
-                <img src="{% static 'images/camera_icon.png' %}" alt="카메라 아이콘" class="camera-icon">
-                이미지 선택
-            </label> -->
-            <!-- <input type="file" id="imageInput" accept="image/*"> -->
-            <button id="sendButton">전송</button>
-        </div>
-        <!-- <button onclick="fetchTextFromDjangoAndSendToTTS()">TTS 변환 및 재생 edge</button> -->
-        <!-- <button onclick="getTTS()">TTS 변환 및 재생 직접</button> -->
-        <svg id="waveform" viewBox="0 0 100 30">
-            <!-- Dots will be dynamically added here -->
-        </svg>
     </div>
 
     <script>
@@ -51,6 +111,32 @@
         let bufferTimeout;
         let lastTranscriptTime = Date.now();
         let checkInterval = null;
+        let isTTSPlaying = false; // TTS 재생 상태를 추적
+        let shouldResumeSpeechRecognition = false; // 음성 인식 재개 여부 추적
+
+        const video = document.getElementById('video');
+
+        // 장치 목록을 가져오고 OBS 가상 카메라를 찾아서 선택
+        navigator.mediaDevices.enumerateDevices()
+            .then(function (devices) {
+                let videoDevices = devices.filter(device => device.kind === 'videoinput');
+                let obsCamera = videoDevices.find(device => device.label.includes('OBS Virtual Camera'));
+
+                if (obsCamera) {
+                    navigator.mediaDevices.getUserMedia({
+                        video: { deviceId: obsCamera.deviceId }
+                    }).then(function (stream) {
+                        video.srcObject = stream;
+                    }).catch(function (err) {
+                        console.error("카메라 스트림을 불러오는데 실패했습니다: ", err);
+                    });
+                } else {
+                    alert("OBS 가상 카메라가 감지되지 않았습니다.");
+                }
+            })
+            .catch(function (err) {
+                console.error("장치 목록을 가져오는데 실패했습니다: ", err);
+            });
 
 
         // 오디오 재생을 제어하는 함수
@@ -116,7 +202,7 @@
 
             recognition.onerror = function (event) {
                 console.error('Speech recognition error', event.error);
-                startNewSTTSession();
+                // startNewSTTSession();
             };
 
             recognition.onend = function () {
@@ -132,22 +218,6 @@
             };
         }
 
-        // function setSilenceDetection() {
-        //     clearTimeout(silenceTimeout);
-        //     silenceTimeout = setTimeout(() => {
-        //         if (textBuffer.trim()) {
-        //             const existingInterim = document.querySelector('.userMessage.interim');
-        //             if (existingInterim) {
-        //                 existingInterim.remove();
-        //             }
-        //             addUserMessage(textBuffer.trim());
-        //             sendToGemini(textBuffer.trim());
-        //             textBuffer = ''; // 버퍼 초기화
-        //         }
-        //         startNewSTTSession();
-        //     }, 2000);
-        // }
-
         function startSilenceDetection() {
             if (checkInterval) {
                 clearInterval(checkInterval);
@@ -156,7 +226,7 @@
             checkInterval = setInterval(() => {
                 const currentTime = Date.now();
                 const silenceDuration = currentTime - lastTranscriptTime;
-
+                console.log(silenceDuration)
                 if (silenceDuration > 750 && textBuffer.trim()) {
                     clearInterval(checkInterval);
                     const existingInterim = document.querySelector('.userMessage.interim');
@@ -168,7 +238,9 @@
                     textBuffer = '';
 
                     startNewSTTSession();
-                }
+
+                } 
+
             }, 100);
         }
 
@@ -201,14 +273,6 @@
             const messageElement = document.createElement('div');
             messageElement.classList.add('chatMessage', 'userMessage');
 
-            // if (imageFile) {
-            //     const img = document.createElement('img');
-            //     img.src = URL.createObjectURL(imageFile);
-            //     img.style.maxWidth = '200px';
-            //     img.style.maxHeight = '200px';
-            //     messageElement.appendChild(img);
-            // }
-
             const textElement = document.createElement('p');
             textElement.textContent = message;
             messageElement.appendChild(textElement);
@@ -233,22 +297,13 @@
             }
         }
 
-        // function startRecording() {
-        //     if (recognition) {
-        //         if (isSpeaking) {
-        //             stopSpeaking(); // Stop any ongoing TTS
-        //         }
-        //         recognition.start();
-        //         setSilenceDetection();
-        //     }
-        // }
-
         function startRecording() {
             if (recognition) {
                 stopCurrentAudio(); // 음성 인식 시작 시 재생 중인 오디오 중지
                 recognition.start();
                 // setSilenceDetection();
             }
+
         }
 
 
@@ -325,15 +380,21 @@
         }
 
         async function speakResponse(text) {
-            stopCurrentAudio(); // 새로운 TTS 시작 전에 이전 TTS 중지
-
-            console.time('tts 시간');
             try {
-                const ttsResponse = await fetch('/api/tts', {
+                // TTS 시작 전에 음성 인식을 일시 중지
+                console.time("tts 시간")
+                if (isListening) {
+                    shouldResumeSpeechRecognition = true;
+                    recognition.stop();
+                }
+
+                isTTSPlaying = true;
+                stopCurrentAudio();
+
+                const ttsResponse = await fetch('http://127.0.0.1:3389/api/tts', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        // 'X-CSRFToken': getCookie('csrftoken')
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ input: text })
                 });
@@ -342,80 +403,33 @@
                 const audioUrl = URL.createObjectURL(audioBlob);
 
                 currentAudio = new Audio(audioUrl);
+
+                // TTS 종료 시 처리
                 currentAudio.onended = () => {
                     URL.revokeObjectURL(audioUrl);
                     currentAudio = null;
+                    isTTSPlaying = false;
+
+                    // TTS 종료 후 음성 인식 재개 (필요한 경우)
+                    if (shouldResumeSpeechRecognition) {
+                        setTimeout(() => {
+                            startRecording();
+                            shouldResumeSpeechRecognition = false;
+                        }, 300); // 약간의 지연을 주어 TTS 종료와 음성 인식 시작 사이의 간격 확보
+                    }
                 };
 
-                currentAudio.play();
+                await currentAudio.play();
+                console.timeEnd("tts 시간")
             } catch (error) {
                 console.error('TTS Error:', error);
+                isTTSPlaying = false;
+                if (shouldResumeSpeechRecognition) {
+                    startRecording();
+                    shouldResumeSpeechRecognition = false;
+                }
             }
-            console.timeEnd('tts 시간');
         }
-
-        // async function speakResponse(text) {
-        //     stopCurrentAudio();
-        //     console.time('tts 시간');
-        //     try {
-        //         const ttsResponse = await fetch('/api/tts', {
-        //             method: 'POST',
-        //             headers: {
-        //                 'Content-Type': 'application/json',
-        //             },
-        //             body: JSON.stringify({ input: text })
-        //         });
-
-        //         if (!ttsResponse.ok) {
-        //             throw new Error(`HTTP error! status: ${ttsResponse.status}`);
-        //         }
-
-        //         // 응답 헤더 확인
-        //         console.log('Response headers:', Object.fromEntries(ttsResponse.headers.entries()));
-
-        //         const audioBlob = await ttsResponse.blob();
-        //         console.log('Audio Blob:', audioBlob); // Blob 정보 확인
-        //         console.log('Blob type:', audioBlob.type); // Blob의 MIME 타입 확인
-
-        //         const audioUrl = URL.createObjectURL(audioBlob);
-        //         console.log('Audio URL:', audioUrl);
-
-        //         currentAudio = new Audio();
-
-        //         // 오디오 객체의 이벤트 리스너 추가
-        //         currentAudio.addEventListener('loadedmetadata', () => {
-        //             console.log('Audio metadata loaded');
-        //         });
-
-        //         currentAudio.addEventListener('canplay', () => {
-        //             console.log('Audio can play');
-        //         });
-
-        //         currentAudio.onerror = (e) => {
-        //             console.error('Audio Error:', e);
-        //             console.error('Audio Error Code:', currentAudio.error.code);
-        //             console.error('Audio Error Message:', currentAudio.error.message);
-        //         };
-
-        //         currentAudio.onended = () => {
-        //             URL.revokeObjectURL(audioUrl);
-        //             currentAudio = null;
-        //         };
-
-        //         currentAudio.src = audioUrl;
-        //         await currentAudio.play();
-
-        //     } catch (error) {
-        //         console.error('TTS Error:', error);
-        //         // 에러 스택 트레이스 출력
-        //         if (error.stack) {
-        //             console.error('Error stack:', error.stack);
-        //         }
-        //     }
-        //     console.timeEnd('tts 시간');
-        // }
-
-
 
         function stopSpeaking() {
             if (isSpeaking) {
@@ -430,57 +444,6 @@
             console.log(voices);
         };
 
-        // function addStars() {
-        //     const starContainer = document.getElementById('starContainer');
-        //     const containerWidth = window.innerWidth;
-        //     const containerHeight = window.innerHeight;
-        //     const starCount = 30;
-        //     const minDistance = 100;
-
-        //     const stars = [];
-
-        //     function checkDistance(x, y) {
-        //         for (let star of stars) {
-        //             const dx = x - star.x;
-        //             const dy = y - star.y;
-        //             const distance = Math.sqrt(dx * dx + dy * dy);
-        //             if (distance < minDistance) {
-        //                 return false;
-        //             }
-        //         }
-        //         return true;
-        //     }
-
-        //     for (let i = 0; i < starCount; i++) {
-        //         let attempts = 0;
-        //         let x, y;
-        //         do {
-        //             x = Math.random() * containerWidth;
-        //             y = Math.random() * containerHeight;
-        //             attempts++;
-        //             if (attempts > 100) break;
-        //         } while (!checkDistance(x, y));
-
-        //         if (attempts <= 100) {
-        //             const star = document.createElement('div');
-        //             star.classList.add('star');
-
-        //             star.style.left = `${x}px`;
-        //             star.style.top = `${y}px`;
-
-        //             const size = 30 + Math.random() * 20;
-        //             star.style.width = `${size}px`;
-        //             star.style.height = `${size}px`;
-
-        //             const animationDuration = 2 + Math.random() * 3;
-        //             star.style.animationDuration = `${animationDuration}s`;
-        //             star.style.animationDelay = `${Math.random() * animationDuration}s`;
-
-        //             starContainer.appendChild(star);
-        //             stars.push({ x, y });
-        //         }
-        //     }
-        // }
         function handleTextAndImageInput() {
             const message = textInput.value.trim();
 
@@ -492,49 +455,6 @@
                 textInput.value = '';
             }
         }
-
-
-        // function handleTextAndImageInput() {
-        //     const message = textInput.value.trim();
-        //     const imageFile = 0;
-
-        //     if (message || imageFile) {
-
-        //         stopRecording();
-        //         stopSpeaking();
-
-        //         addUserMessage(message, imageFile);
-
-        //         if (imageFile) {
-        //             const formData = new FormData();
-        //             formData.append('image', imageFile);
-        //             if (message) formData.append('text', message);
-
-        //             fetch('/process_speech/', {
-        //                 method: 'POST',
-        //                 body: formData,
-        //                 headers: {
-        //                     'X-CSRFToken': getCookie('csrftoken')
-        //                 }
-        //             })
-        //                 .then(response => response.json())
-        //                 .then(data => {
-        //                     speakResponse(data.response);
-        //                     addBotMessage(data.response);
-        //                 })
-        //                 .catch(error => {
-        //                     console.error('Error:', error);
-        //                     addBotMessage("죄송합니다. 오류가 발생했습니다.");
-        //                     startNewSTTSession();
-        //                 });
-        //         } else if (message) {
-        //             sendToGemini(message);
-        //         }
-
-        //         textInput.value = '';
-        //         // imageInput.value = '';
-        //     }
-        // }
 
         sendButton.addEventListener('click', handleTextAndImageInput);
         textInput.addEventListener('keypress', function (e) {
@@ -568,33 +488,6 @@
             }
         }
 
-        // function sendToGemini(text) {
-        //     console.time('전체 처리 시간');
-        //     fetch('/process_speech/', {
-        //         method: 'POST',
-        //         headers: {
-        //             'Content-Type': 'application/json',
-        //             'X-CSRFToken': getCookie('csrftoken')
-        //         },
-        //         body: JSON.stringify({ text: text })
-        //     })
-        //         .then(response => response.json())
-        //         .then(data => {
-        //             console.timeEnd('전체 처리 시간');
-
-        //             speakResponse(data.response);
-        //             console.timeEnd('tts 시간');
-        //             addBotMessage(data.response);
-
-        //         })
-        //         .catch(error => {
-        //             console.error('Error:', error);
-        //             addBotMessage("죄송합니다. 오류가 발생했습니다.");
-        //             startNewSTTSession();
-        //         });
-
-        // }
-
         function getCookie(name) {
             let cookieValue = null;
             if (document.cookie && document.cookie !== '') {
@@ -610,61 +503,6 @@
             return cookieValue;
         }
 
-
-        // async function fetchTextFromDjangoAndSendToTTS() {
-        //     // 1. Django 서버에서 텍스트 가져오기
-        //     console.time('fetchText');  // 고유한 타이머 이름 사용
-        //     const response = await fetch('/tts_view/');
-        //     const data = await response.json();
-        //     const text = data.message;  // Django에서 받은 텍스트
-
-        //     // 2. 이 텍스트를 Express 서버로 전송 (TTS 변환 요청)
-        //     console.time('sendToTTS');  // 또 다른 고유한 타이머 이름 사용
-        //     const ttsResponse = await fetch('http://localhost:3000/tts', {
-        //         method: 'POST',
-        //         headers: {
-        //             'Content-Type': 'application/json'
-        //         },
-        //         body: JSON.stringify({ input: text })
-        //     });
-        //     console.timeEnd('sendToTTS');  // 타이머 종료
-
-        //     // 3. TTS 변환된 음성 파일 받기
-        //     const audioBlob = await ttsResponse.blob();
-        //     const audioUrl = URL.createObjectURL(audioBlob);
-
-        //     // 4. 프론트엔드에서 오디오 재생
-        //     const audio = new Audio(audioUrl);
-        //     audio.play();
-        //     console.timeEnd('fetchText');  // 타이머 종료
-        // }
-
-        // async function getTTS(text) {
-        //     const url = "/tts-without-edge/";  // Edge function 사용 안 함
-
-        //     console.time('getTTS');  // 고유한 타이머 이름 사용
-        //     const response = await fetch(url, {
-        //         method: "POST",
-        //         headers: {
-        //             "Content-Type": "application/json",
-        //             'X-CSRFToken': getCookie('csrftoken')
-        //         },
-        //         body: JSON.stringify({ text: text }),
-        //     });
-
-        //     // Blob 형태로 음성 파일을 받음
-        //     const audioBlob = await response.blob();
-        //     const latency = response.headers.get('Latency');
-        //     console.log(`Latency: ${latency} seconds`);
-
-        //     // Blob 데이터를 URL로 변환 후 오디오로 재생
-        //     const audioUrl = URL.createObjectURL(audioBlob);
-        //     const audio = new Audio(audioUrl);
-        //     audio.play();
-        //     console.timeEnd('getTTS');  // 타이머 종료
-
-        //     return audioUrl;  // 필요 시 audio URL 반환
-        // }
 
         // window.addEventListener('load', addStars);
         window.addEventListener('resize', () => {
